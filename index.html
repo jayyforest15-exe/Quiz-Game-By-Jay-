@@ -3,175 +3,179 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Full Quiz App</title>
+<title>Quiz Game Pro</title>
 <style>
-body { font-family: Arial; margin:0; background:#111; color:white; }
+body { margin:0; font-family: Arial; background:#000080; color:white; }
 .screen { display:none; padding:20px; }
 .active { display:block; }
-.card { background:#222; padding:20px; border-radius:15px; }
-button { width:100%; padding:12px; margin:8px 0; border:none; border-radius:10px; }
+.card { background:#111a66; padding:20px; border-radius:15px; margin:10px auto; max-width:500px; }
+button { width:100%; padding:12px; margin:8px 0; border:none; border-radius:10px; cursor:pointer; }
 .correct { background:green; }
 .wrong { background:red; }
-.question { background: linear-gradient(90deg, blue, red, yellow, green); padding:10px; border-radius:10px; }
-img { max-width:100%; border-radius:10px; margin:10px 0; }
+input, textarea { width:100%; padding:10px; margin:5px 0; border-radius:8px; border:none; }
+.question { font-size:20px; margin-bottom:10px; }
+.tab { display:inline-block; padding:10px; cursor:pointer; background:#222; margin:5px; border-radius:10px; }
+.activeTab { background:#444; }
 </style>
-
-<!-- FIREBASE -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyBZm_IUIJWZCWhLqNii2Pijqg2RNAYqGKQ",
-  authDomain: "quiz-game-jay.firebaseapp.com",
-  projectId: "quiz-game-jay"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-
-window.register = function(){
-  const email = user.value + "@game.com";
-  const password = pass.value;
-  createUserWithEmailAndPassword(auth, email, password)
-    .then(()=>alert("Registered!"))
-    .catch(e=>alert(e.message));
-}
-
-window.loginUser = function(){
-  const email = user.value + "@game.com";
-  const password = pass.value;
-  signInWithEmailAndPassword(auth, email, password)
-    .then(()=>{ player=user.value; show('dev'); })
-    .catch(()=>alert("Login failed"));
-}
-</script>
 </head>
 <body>
 
+<!-- LOGIN -->
 <div id="login" class="screen active">
 <div class="card">
 <h2>Login</h2>
-<input id="user" placeholder="Username"><br>
-<input id="pass" type="password" placeholder="Password"><br>
-<button onclick="register()">Register</button>
+<input id="user" placeholder="Username">
+<input id="pass" type="password" placeholder="Password">
 <button onclick="loginUser()">Login</button>
 </div>
 </div>
 
-<div id="dev" class="screen">
+<!-- MENU -->
+<div id="menu" class="screen">
 <div class="card">
-<h2>Developer</h2>
-<textarea id="data" rows="6" placeholder="Q|imgURL|A|B|C|D|correctIndex"></textarea>
-<button onclick="startGame()">Start</button>
+<h2>Choose Mode</h2>
+<button onclick="enterPlayer()">🎮 Player</button>
+<input id="devKey" placeholder="Enter Dev Key">
+<button onclick="enterDev()">🛠 Developer</button>
 </div>
 </div>
 
+<!-- DEVELOPER -->
+<div id="dev" class="screen">
+<div class="card">
+<div>
+<span class="tab activeTab" onclick="showTab('input')">Input Question</span>
+<span class="tab" onclick="showTab('edit')">Edit Question</span>
+</div>
+
+<div id="inputTab">
+<input id="qInput" placeholder="Question">
+<input id="imgInput" placeholder="Image URL">
+<input id="a1" placeholder="Answer 1">
+<input id="a2" placeholder="Answer 2">
+<input id="a3" placeholder="Answer 3">
+<input id="a4" placeholder="Answer 4">
+<input id="correct" placeholder="Correct (1-4)">
+<button onclick="addQuestion()">Add Question</button>
+</div>
+
+<div id="editTab" style="display:none">
+<div id="questionList"></div>
+</div>
+
+<h3>Player Database</h3>
+<div id="scores"></div>
+</div>
+</div>
+
+<!-- GAME -->
 <div id="game" class="screen">
 <div class="card">
 <div id="info"></div>
-<div id="timer"></div>
 <div id="q" class="question"></div>
-<img id="qimg" />
+<img id="qimg" style="max-width:100%">
 <div id="answers"></div>
 <div id="result"></div>
 </div>
 </div>
 
-<audio id="correctSound" src="https://www.soundjay.com/buttons/sounds/button-3.mp3"></audio>
-<audio id="wrongSound" src="https://www.soundjay.com/buttons/sounds/button-10.mp3"></audio>
-
 <script>
-let player="";
 let questions=[];
-let i=0, score=0, timer, time=10;
+let i=0, credits=0, player="";
+let db = JSON.parse(localStorage.getItem("scores")||"{}");
 
 function show(id){
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+ document.getElementById(id).classList.add('active');
 }
 
-function startGame(){
-  let key="study123";
-  if(new URLSearchParams(location.search).get("key")!==key){ alert("No access"); return; }
-
-  questions = data.value.split("\n").map(l=>{
-    let p=l.split("|");
-    return {q:p[0], img:p[1], a:p.slice(2,6), c:parseInt(p[6])-1};
-  });
-
-  i=0; score=0;
-  show('game');
-  next();
+function loginUser(){
+ player=user.value;
+ show('menu');
 }
+
+function enterDev(){
+ if(devKey.value==="creativejay123"){
+   show('dev'); renderScores(); renderQuestions();
+ } else alert("Wrong Key");
+}
+
+function enterPlayer(){
+ show('game'); start();
+}
+
+function showTab(tab){
+ inputTab.style.display = tab==='input'?'block':'none';
+ editTab.style.display = tab==='edit'?'block':'none';
+}
+
+function addQuestion(){
+ questions.push({
+   q:qInput.value,
+   img:imgInput.value,
+   a:[a1.value,a2.value,a3.value,a4.value],
+   c:parseInt(correct.value)-1
+ });
+ renderQuestions();
+ alert("Added!");
+}
+
+function renderQuestions(){
+ let list="";
+ questions.forEach((q,idx)=>{
+   list+=`<div>${idx+1}. ${q.q}</div>`;
+ });
+ questionList.innerHTML=list;
+}
+
+function start(){ i=0; credits=0; next(); }
 
 function next(){
-  if(i>=questions.length){
-    q.innerText="Finished!";
-    answers.innerHTML="";
-    result.innerText=`Score: ${score}`;
-    return;
-  }
-
-  let cur=questions[i];
-  q.innerText=cur.q;
-  qimg.src=cur.img;
-  info.innerText=`${player} | Score: ${score}`;
-
-  answers.innerHTML="";
-  cur.a.forEach((a,idx)=>{
-    let b=document.createElement('button');
-    b.innerText=a;
-    b.onclick=()=>check(idx,b);
-    answers.appendChild(b);
-  });
-
-  startTimer();
-}
-
-function startTimer(){
-  time=10;
-  timer=setInterval(()=>{
-    timerEl.innerText="Time: "+time;
-    time--;
-    if(time<0){ clearInterval(timer); showCorrect(); }
-  },1000);
+ if(i>=questions.length){
+   db[player]=credits;
+   localStorage.setItem("scores",JSON.stringify(db));
+   result.innerText=`Credits: ${credits} ✦`;
+   return;
+ }
+ let cur=questions[i];
+ q.innerText=cur.q;
+ qimg.src=cur.img;
+ info.innerText=`${player} | Credits: ${credits} ✦`;
+ answers.innerHTML="";
+ cur.a.forEach((ans,idx)=>{
+   let b=document.createElement('button');
+   b.innerText=ans;
+   b.onclick=()=>check(idx,b);
+   answers.appendChild(b);
+ });
 }
 
 function check(idx,btn){
-  clearInterval(timer);
-  let cur=questions[i];
-  let btns=document.querySelectorAll('#answers button');
-  btns.forEach(b=>b.disabled=true);
-
-  if(idx===cur.c){
-    btn.classList.add('correct');
-    correctSound.play();
-    score++;
-    result.innerText=randomMsg();
-  } else {
-    btn.classList.add('wrong');
-    btns[cur.c].classList.add('correct');
-    wrongSound.play();
-    result.innerText="Wrong!";
-  }
-
-  i++;
-  setTimeout(next,1500);
+ let cur=questions[i];
+ let btns=document.querySelectorAll('#answers button');
+ btns.forEach(b=>b.disabled=true);
+ if(idx===cur.c){
+   btn.classList.add('correct');
+   credits+=100;
+   result.innerText=randomMsg();
+ } else {
+   btn.classList.add('wrong');
+   btns[cur.c].classList.add('correct');
+   result.innerText="Wrong!";
+ }
+ i++;
+ setTimeout(next,1500);
 }
 
-function showCorrect(){
-  let cur=questions[i];
-  let btns=document.querySelectorAll('#answers button');
-  btns[cur.c].classList.add('correct');
-  result.innerText="Time's up";
-  i++;
-  setTimeout(next,1500);
+function renderScores(){
+ let out="";
+ for(let p in db){ out+=`${p}: ${db[p]} ✦<br>` }
+ scores.innerHTML=out;
 }
 
 function randomMsg(){
-  let m=["Awesome!","Great Job!","Congratulations!"];
-  return m[Math.floor(Math.random()*m.length)];
+ let m=["Congratulations!","That's Correct!","You Nailed It!"];
+ return m[Math.floor(Math.random()*m.length)];
 }
 </script>
 
